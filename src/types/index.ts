@@ -1,5 +1,5 @@
 export interface ICard {
-    _id: string;
+    id: string;
     title: string;
     description: string;
     image: string;
@@ -31,9 +31,9 @@ export interface IOrderData {
     validateOrderInfo(data: Record<keyof TUserOrderInfo, string>): void
 }
 
-export type TBasketInfo = Pick<ICard, '_id' | 'title' | 'price'>;
+export type TBasketInfo = Pick<ICard, 'id' | 'title' | 'price'>;
 
-export type TItemId = Pick<ICard, '_id'>;
+export type TItemId = Pick<ICard, 'id'>;
 
 export type TUserOrderInfo = Pick<IOrder, 'paymentMethod' | 'address' | 'phone' | 'email'>;
 
