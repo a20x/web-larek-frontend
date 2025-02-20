@@ -53,7 +53,8 @@ interface ICard {
     description: string;
     image: string;
     category: string;
-    price: number;
+    price: number | null;
+    categoryClass: string,
 }
 ```
 
@@ -62,24 +63,52 @@ interface ICard {
 ```
 interface IOrder {
     address: string;
-    phone: number
+    phone: string;
     email: string;
-    paymentMethod: string;
-    total: string;
-    items: TItemId[];
+    payment: string;
+    total: number;
+    items: string[];
 }
 ```
 
 Интерфейс для коллекции карточек
 
 ```
-interface ICardsData {
+interface interface ICardsData {
     cards: ICard[];
-    cardPreview: string | null; 
-    addCard(card: ICard) : void;
-    deleteCard(cardId: string, payload: Function | null): void;
-    updateCard(card: ICard, payload: Function | null): void;
+    cardPreview: ICard;
+    events: IEvents;
+    basket: ICard[];
     getCard(cardId: string): ICard;
+    addCardToBasket(cardId: string): void;
+    getBasketCardCount(): number;
+    getBasketTotal(): number;
+    clearBasket(): void;
+    removeCardFromBasket(cardId: string): void;
+}
+```
+
+Типизация данных валидации пользователя
+
+```
+type TOrderValidationData = {field: string, value: string};
+```
+
+Интерфейс для данных пользователя
+
+```
+interface IOrderData {
+    address: string;
+    phone: string;
+    email: string;
+    payment: string;
+    events: IEvents;
+
+    getOrderData(): TUserOrderInfo;
+    validateAddress(data: TOrderValidationData): boolean;
+    validatePhone(data: TOrderValidationData): boolean;
+    validateEmail(data: TOrderValidationData): boolean;
+    validatePayment(payment: string): boolean;
 }
 ```
 
@@ -87,11 +116,6 @@ interface ICardsData {
 
 ```
 type TBasketInfo = Pick<ICard, 'id' | 'title' | 'price'>;
-```
-
-Id карточки для заказа
-```
-type TItemId = Pick<ICard, 'id'>;
 ```
 
 Данные заказа
@@ -109,6 +133,24 @@ type TUserOrderAddressInfo = Pick<IOrder, 'paymentMethod' | 'address'>;
 
 ```
 type TUserPersonalInfo = Pick<IOrder, 'phone' | 'email'>;
+```
+
+интерфейс запросов на сервер
+```
+interface IApi {
+    baseUrl: string;
+    get<T>(uri: string): Promise<T>;
+    post<T>(uri: string, data: object, method?: ApiPostMethods): Promise<T>;
+}
+```
+
+типизация полученных данных, при успешной отправке на сервер
+
+```
+interface IOrderRes {
+    id: string;
+    total: number;
+}
 ```
 
 ## Архитектура приложения
@@ -141,38 +183,45 @@ type TUserPersonalInfo = Pick<IOrder, 'phone' | 'email'>;
 Конструктор выглядит следующим образом: constructor(events: IEvents)
 
 В полях класса хранятся следующие данные:
-- cards: ICard[] - массив объектов карточек
-- cardPreview: string | null - id карточки, выбранной для просмотра в модальном окне.
+- _cards: ICard[] - массив объектов карточек
+- _cardPreview: string | null - id карточки, выбранной для просмотра в модальном окне.
 - events: IEvents - экземпляр класса `EventEmitter` для инициализации событий при изменении данных.
+- _basket: ICard[] - корзина, которая хранит массив карточек
 
 Набор методов, доступных в классе для взаимодействия с данными карточек:
-- getCard(cardId: string): ICard - получение карточки по id с сервера.
+- getCard(cardId: string): ICard - получение карточки по id из массива карточек.
 - addCardToBasket(cardId: string): void - добавляет карточку в корзину.
-- getBasketList(): ICard[] - метод для получения массива карточек в корзине.
+- get basket(): ICard[] - возвращает данные из поля _basket.
+- set basket(cards: ICard[]): void - устонавливает карточки в поле _basket.
 - getBasketCardCount(): number - метод, подсчитывающий количество карточек в корзине, для отображения их количества на главной странице.
 - getBasketTotal(): number - метод, подсчитывающий стоимость корзины.
 - clearBasket(): void - очищает все данные карточек из корзины.
 - removeCardFromBasket(cardId: string): void - удаляет данные карточки из массива карточек в корзине.
-- getSelectedCard(cardId: string): ICard - метод, получающий данные о выбранной карточке.
-- setSelectedCard(cardId: string): void - метод, сохраняющий данные выбранной карточки в поле класса.
-- setCardsCatalog(cardsData: ICard[]): void - метод, сохраняющий данные карточек в поле класса.
-- getCardsCatalog(): ICard[] - метод, получающий данные каталога карточек с сервера.
+- get cardPreview(): ICard - получение значения из поля _cardPreview.
+- get cards(): ICard[] - получает данные о карточках из поля класса _cards.
+- set cards(items: ICard[]): void - устанавливает данные cards: ICard[] в поле класса _cards.
 
 #### Класс OrderData
 Класс отвечает за хранение и работу с данными заказа.\
 Конструктор класса принимает инстант брокера событий.
 
 В полях класса хранятся следующие данные:
-- address: string - адрес пользователя заказа
-- phone: number - номер телефона пользователя
-- email: string - электронная почта пользователя
-- paymentMethod: string - способ опталы
+- _address: string - адрес пользователя заказа
+- _phone: number - номер телефона пользователя
+- _email: string - электронная почта пользователя
+- _paymentMethod: string - способ опталы
 - events: IEvents - экземпляр класса `EventEmitter` для инициализации событий при изменении данных.
 
 Также, в классе представлены методы, позволяющие взаимодействовать с данными пользователя заказа.
-- validateOrderInfo(data: Record<keyof TUserOrderInfo, string>): void - проверяет объект с данными пользователя на валидность.
-- setUserOrderAddressInfo(data: TUserOrderAddressInfo): void - метод, сохраняющий данные заказа в полях класса.
-- setUserPersonalInfo(data: TUserPersonalInfo): void - метод, сохраняющий персональные данные пользователя в полях класса.
+- set address(address: string): void - устанавливает переданное значение в поле _address.
+- set phone(phone: string): void - устанавливает переданное значение в поле _phone.
+- set email(email: string): void - устанавливает переданное значение в поле _email.
+- set payment(payment: string): void - устанавливает переданное значение в поле _payment.
+- getOrderData(): TUserOrderInfo - получение данных из полей класса
+- validateAddress(data: TOrderValidationData): boolean - валидирует поле с адресом, возвращает true/false.
+- validatePhone(data: TOrderValidationData): boolean - валидирует поле с номером телефона, возвращает true/false.
+- validateEmail(data: TOrderValidationData): boolean - валидирует поле с почтой, возвращает true/false.
+- validatePayment(payment: string): boolean - проверяет, валидна ли кнопка выбора оплаты
 
 
 ### Классы представления
@@ -180,112 +229,129 @@ type TUserPersonalInfo = Pick<IOrder, 'phone' | 'email'>;
 
 #### Класс Modal
 Класс реализует модальное окно. Имеет методы `open` & `close` для отображения модального окна. Имеет слушатель на кнопку esc, клик по оверлею и кнопку-крестик для закрытия модального окна.
-- constructor(modalSelector: string, events: IEvents) Конструктор принимает селектор модального окна, где будет отображаться содержимое. И экземпляр класса `EventEmitter` для возможности инициализации событий.
+- constructor(modalSelector: HTMLElement, events: IEvents) Конструктор принимает селектор модального окна, где будет отображаться содержимое. И экземпляр класса `EventEmitter` для возможности инициализации событий.
 
 Поля класса:
-- modalSelector: string - селектор модального окна.
-- events: IEvents - брокер событий
+- modalContainer: HTMLElement - селектор модального окна.
+- events: IEvents - брокер событий.
+- modalCloseButton: HTMLButtonElement - кнопка закрытия модального окна
+- modalContent: HTMLElement - селектор контента модального окна
 
 Методы:
 - open(): void - метод отвечает за открытие модального окна.
 - close(): void - закрытие модального окна.
+- closeOnEsc(evt: KeyboardEvent): void - закрытие на esc
+- setContent(content: HTMLElement): void - установка контенка в модальное окно
+- clearModal(): void - очистка контента в модальном окне
 
-#### Класс OrderInfo
-Предназначен для отображения контента в модальном окне. При сабмите инициализуется событие, и передается объект с данными из инпута. При изменении данных в инпуте, инициализируется событие проверки верности введенных данных. Также, имеет метод изменения состояния кнопки сабмита. Предоставляет методы отображения ошибок для полей ввода.
+#### Класс Form
+Является базовым классом форм. При сабмите инициализуется событие, и передается объект с данными из инпута. При изменении данных в инпуте, инициализируется событие проверки верности введенных данных. Также, имеет метод изменения состояния кнопки сабмита. Предоставляет методы отображения ошибок формы. В конструкторе принимает форму.
 
 Поля класса:
 - fromName: string - значение атрибута name формы.
-- submitButton: HTMLButtonElement - кнопка сабмита формы.
-- _form: HTMLFormElement - элемент формы.
-- inputs: NodeListOf<HTMLInputElement> - коллекция всех полей ввода.
-- errors: Record<string, HTMLElement> - объект, который хранит ошибки для инпут полей, к которым можно обратиться по имени поля.
+- _submit: HTMLButtonElement - кнопка сабмита формы.
+- form: HTMLFormElement - элемент формы.
+- _errors: HTMLElement  - селектор для вывода ошибок.
+- inputs: NodeListOf<HTMLInputElement> - инпут элементы формы
+- errorMessages: Record<string, string> - объект с полем и ошибкой.
 
 Методы:
-- setValid(isValid: boolean): void - меняет состояние кнопки сабмита.
-- getInputValues(): data: Record<string, string> - метод возвращает объект с данными, которые ввел пользователь в поля инпутов, где ключ - название поля, значение - введенные данные.
-- setInputValues(data: Record<string, string>): void - метод, который позволяет установить данные в поля input.
-- setError(data: {errorMessage: string, inputInformation: string}): void - принимает объект данных для показа или скрытия ошибок у инпутов.
-- showInputError(errorMessage: string): void - показывает текст ошибки у инпута.
-- hideInputError(): void - передает в метод поле, у которого необходимо будет спрятать текст ошибки.
-- clearInputValues(): void - метод для очистки полей ввода.
-- get form(): HTMLFormElement - получение формы для возможного дальнейшего использования.
+- handleSubmit(): void - отвечает за сабмит формы.
+- getInputValues(): Record<string, string> - получает данные из инпутов.
+- checkFormValidity(): void - проверяет форму на валидность.
+- setErrorMessages(data: {field: string, message: string}): void - принимает объект данных для отображения ошибок.
+- clearError(field: string): void - метод для скрытия сообщения об ошибке.
+- displayErrors(): void - отвечает за отображение ошибок
+- errors(value: string): void - отвечает за установку ошибков в поле ошибки.
+- valid(value: boolean): void - делает кнопку сабмита активной, и наоборот.
+- clearForm(): void - делает ресет формы.
 
-#### Класс PaymentInfo
-Расширяет класс OrderInfo. Помимо функционала класса OrderInfo дает возможность выбрать способ оплаты.Класс предназначен для отображения модального окна о способе оплаты и адресе доставки.
+#### класс Contacts 
+Расширяет класс Form. На данный момент использует только методы базового класса Form, но может в будующем быть дополнен функционалом. Конструктор принимает `form: HTMLFormElement` и вызывает родительский конструктор, с параментром form.
+
+
+#### Класс Order
+Раширяет класс Form. Предназначен для отображения информации о заказе. Помимо функционала класса Form дает возможность выбрать способ оплаты. Класс предназначен для отображения контента в модальном окне о способе оплаты и адресе доставки. Помимо методов базового класса, обладает методом выбора способа оплаты. Конструктор принимает `form: HTMLFormElement` и вызывает родительский конструктор, с параментром form.
 
 Поля класса:
-- firstPaymentChoiceButton: HTMLButtonElement - кнопка первого способа оплаты
-- secondPaymentChoiceButton: HTMLButtonElement - кнопка второго способа оплаты
+- paymentButtons: HTMLButtonElement[] - кнопки выбора способа оплаты.
+- selectedPayment: string; - выбранный способ оплаты
+- addressField: HTMLInputElement; - поле инпута с адресом
 
 Методы:
-- paymentButtonsToggle(firstPaymentChoiceButton: HTMLButtonElement, secondPaymentChoiceButton: HTMLButtonElement): void - переключение активной кнопки выбора оплаты
+- handleSubmit(): void - отвечает за сабмит формы
+- activePaymentButton(buttonName: string): void - отвечает за переключение выбранной кнопки об оплате.
+- checkFormValidity(): void - проверяет форму на валидность.
+
 
 #### Класс OrderConfirmation
 Предназначен для модального окна подтверждения заказа.
 
 Поля класса:
-- orderSuccessButton: HTMLButtonElement - кнопка закрытия попапа.
-- orderTotal: number - сумма заказа
+- container: HTMLElement - темплейт разметки с окном подтверждения.
+- button: HTMLButtonElement - кнопка успешного оформления заказа.
+- _total: HTMLElement - элемент разметки для отображения суммы заказа.
 
 Методы:
-- setOrderTotal(orderTotal: number): void - отображение суммы заказа.
+- total(value: number): void - отвечает за отображении суммы заказа.
+
 
 #### Класс Card
 Отвечает за отображение карточек, задавая карточкам следующие данные: название, категория, изображение, описание, цена. Класс будет принимать в конструктор `templateSelector: string` карточки, что позволит создавать разные вариации отображения карточки. Также, принимает экземпляр класса `EventEmitter`, для инициализации событий. Элементы разметки будут находиться в конструкторе, чтобы их поиск выполнялся 1 раз.
 
+Поля класса:
+- cardImage: HTMLImageElement | null - изображение карточки
+- cardCategory: HTMLSpanElement | null - категория карточки
+- cardTitle: HTMLHeadingElement - название карточки
+- cardText: HTMLElement | null - описание карточки
+- _cardButton: HTMLButtonElement | null - кнопка добавления карточки в корзину
+- cardPrice: HTMLSpanElement - цена карточки
+- cardId: string - id карточки
+- cardDeleteButton: HTMLButtonElement | null - кнопка удаления карточки
+- cardIndex: HTMLSpanElement | null - индекс карточки (для отображения в корзине)
+
 Методы:
-- setData(cardData: ICard): void - заполняет атрибуты элементов карточки данными.
-- render(): HTMLElement - метод возвращает полностью заполненую карточку.
-- геттер id - возвращает уникальный id карточки.
+сеттеры:
+- price(price: number | null) - устанавливает цену карточки, или указывает, что карточка бесценна
+- category(category: string) - устонавливает категорию карточки
+- image(url: string) - устанавливает изображение карточки.
+- description(text: string) - устанавливает описание карточки.
+- title(title: string) - устанавливает название карточки.
+- id(id: string) - устанавливает id карточки.
+- categoryClass(className: string) - устанавливает цвет категории карточки.
+- index(index: number) - устанавливает индекс карточки
+геттеры:
+- cardButton(): HTMLButtonElement - получение кнопки добавления карточки в корзину для изменения ее состояния.
+- get id(): string - возвращает уникальный id карточки.
+
 
 #### Класс CardsContainer 
-Расширяет класс Card. Отвечает за отображение массива карточек на главной странице. В конструктор также передаем `containerSelector: string` для нахождения контейнера, где будет отображаться массив карточек.
+Расширяет класс Component. Отвечает за отображение массива карточек на главной странице. В конструктор также передаем `containerSelector: string` для нахождения контейнера, где будет отображаться массив карточек и eventEmitter.
 
 Поля класса:
-- container: string - контейнер, в котором будут отображаться карточки.
+- headerBasket: HTMLButtonElement - кнопка-слушатель клика для открытия корзины.
+- _headerBasketCounter: HTMLSpanElement - счетчик карточек в корзине
 
 Методы:
-- set containerData(cardsData: ICard[]): void - метод, который принимает массив карточек и отображает их на главной странице приложения.
+- catalog(items: HTMLElement[]): void - метод, который принимает массив карточек и отображает их на главной странице приложения.
+- headerBasketCounter(amount: number): void - отображает количество карточек в корзине на главной странице.
 
-#### Класс ModalWithCardDetailedInfo
-Расширяет класс Card. Предназначен для детального отображения информации о карточках в модальном окне. Также, имеет кнопку добавления карточки в корзину. Конструктор выглядит следующим образом: constructor(templateSelector: string, events: IEvents) - принимает темплейт карточки и брокер событий.
-
-Поля класса:
-- cardButton: HTMLButtonElement - кнопка на карточке для добавления в корзину.
-- handleSubmit: Function - функция, для выполнения которой необходимо подтверждение.
-- cardTemplate: string - темплейт карточки.
-- events: IEvents - брокер событий.
-
-Методы:
-- renderCard(cardData: ICard) - void - метод принимает данные карточки и отображает их.
-- addToBasket(handleSubmit: Function): void - при вызове добавляет карточку в корзину.
 
 #### Класс Basket
-Расширяет класс Card. Отвечает за отображения карточек, добавленных в корзину. Также, имеет кнопку оформления заказа, взаимодействие с которой вызывает функцию. В конструктор принимает `templateSelector: string` и `events: IEvents`
+Отвечает за отображения карточек, добавленных в корзину. Также, имеет кнопку оформления заказа, взаимодействие с которой вызывает функцию. В конструктор принимает `templateSelector: string` и `events: IEvents`
 
 Поля класса:
-- basketList: HTMLElement - список, где будет отображаться информация о карточках, добавленных в корзину.
-- submitButton: HTMLButtonElement - кнопка для оформления заказа.
-- handleSubmit: Function - функция, для выполнения которой необходимо подтверждение.
-- basketTemplate: string - темплейт корзины.
-- events: IEvents - брокер событий.
+- _basketList: HTMLElement - список, где будет отображаться информация о карточках, добавленных в корзину.
+- _basketPrice: HTMLSpanElement - 
+- _basketButton: HTMLButtonElement - кнопка для оформления заказа.
 
 Методы:
-- submit(handleSubmit: Function): void - метод, отвечающий за открытие другого модального окна.
-- setBasketTotal(orderTotal: number): void - метод, который отвечает за показ суммы заказа.
-- renderBasketCardList(cardsData: TBasketInfo): void - метод для отображения карточек в корзине.
-- renderBasket(): void - метод для обновления корзины (карточек, при изменении, и полной стоимости).
+сеттеры: 
+- basketList(cards: HTMLElement[]): void - устанавливает карточки в корзине.
+- basketPrice(total: number): void - устанавливает цену корзины.
 
-#### Класс BasketHeader
-Предназначен для отображения количества карточек в корзине на главной странице. В конструктор будет передаваться `countSelector: string` для нахождения элемента в разметке, отражающий подсчет карточек и `events: IEvents` для подписания на событие.
-
-Поля класса:
-- basketHeaderCounter: HTMLElement - элемент отображения количества карточек в корзине.
-- events: IEvents - брокер событий.
-
-Методы:
-- updateCount(count: number): void - метод обновления счета карточек.
-
+геттер: 
+- basketButton() - получает кнопку корзины.
 
 ### Слой коммуникации
 
@@ -300,17 +366,31 @@ type TUserPersonalInfo = Pick<IOrder, 'phone' | 'email'>;
 Список всех событий, которые могут генерироваться в системе:\
 События изменения данных (генерируются классами моделями данных):\
 - `cards:changed` - изменение массива карточек.
-- `card:selected` - определение выбранной карточки для отображения в модальном окне.
-- `card:previewClear` - очистка данных карточки при закрытие модального окна.
+- `basket:update` - событие, необходимое для перерасчета карточек в корзине.
+- `address:updated` - изменение адреса
+- `phone:updated` - изменение телефона
+- `email:updated` - изменение email
+- `address:valid` - адрес валиден
+- `phone:valid` - телефон валиден
+- `email:valid` - email валиден
+- `payment:valid` - способ оплаты валиден
+
 
 События, возникающие при взаимодействии пользователя с интерфейсом (генерируются классами представления):\
-- `card:select` - выбор карточки для отображения в модальном окне.
-- `basket:open` - открытие модального окна корзины.
 - `contacts:input` - изменение данных в форме контактной информации о пользователе.
 - `order:input` - изменение данных в форме информации о заказе.
-- `contacts:submit` - сохранение контактных данных пользователя.
-- `order:submit` - сохранение данных заказа.
-- `basket:submit` - сохранение данных о карточках в корзине.
 - `contacts:validation` - валидация всей формы (контактной информации) для переключения кнопки сабмита в активную.
 - `order:validation` - валидация всей формы (информации о заказе) для переключения кнопки сабмита в активную.
-- `basket:update` - событие, необходимое для перерасчета карточек в корзине.
+
+- `modal: open` - модальное окно открылось.
+- `modal: close` - модальное окно закрылось.
+- `basket:submit` - сабмит корзины.
+- `card:select` - выбор карточки для отображения в модальном окне.
+- `card:submit` - сабмит выбранной карточки.
+- `card:delete` - удаление карточки из корзины.
+- `basket:open` - открытие модального окна корзины.
+- `contacts:submit` - сохранение контактных данных пользователя.
+- `order:submit` - сохранение данных заказа.
+- `success:submit` - сабмит модального окна об успешной покупке
+- `order:input` - инпуты формы order
+- `contacts:input` - инпуты формы contacts
